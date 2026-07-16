@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Donatı Tarama Cihazı</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="uygulama-basligi">
+  <h1>Donatı Tarama Cihazı</h1>
+</header>
+
+<main id="uygulama">
+
+  <!-- GİRİŞ EKRANI -->
+  <section id="ekran-giris" class="ekran aktif">
+    <div class="giris-formu">
+      <label for="operator-input">Operatör Adı</label>
+      <input type="text" id="operator-input" placeholder="Örn: Ahmet Y." autocomplete="off" />
+
+      <label for="konum-input">Konum Etiketi</label>
+      <input type="text" id="konum-input" placeholder="Örn: B Blok - Kolon K12" autocomplete="off" />
+
+      <label for="eleman-tipi-select">Eleman Tipi</label>
+      <select id="eleman-tipi-select"></select>
+
+      <label for="pas-payi-input">Gerekli Min. Pas Payı (mm)</label>
+      <input type="number" id="pas-payi-input" min="1" step="1" inputmode="numeric" />
+      <p class="yardim-metni">Eleman tipine göre tipik bir değer önerilir; proje şartnamesine göre değiştirebilirsiniz.</p>
+
+      <button id="baslat-butonu" class="buyuk-buton">TARAMAYI BAŞLAT</button>
+      <p id="giris-hata" class="hata-metni" hidden></p>
+    </div>
+
+    <div class="gecmis-bolumu">
+      <h2>Son Taramalar</h2>
+      <div id="depolama-uyari" class="depolama-uyari" hidden></div>
+      <ul id="gecmis-listesi" class="gecmis-listesi"></ul>
+      <p id="gecmis-bos-mesaj" class="bos-mesaj" hidden>Henüz kayıtlı tarama yok.</p>
+    </div>
+  </section>
+
+  <!-- İLERLEME EKRANI -->
+  <section id="ekran-ilerleme" class="ekran">
+    <div class="ilerleme-kutusu">
+      <p class="ilerleme-mesaji">İşleniyor, lütfen bekleyin…</p>
+      <div class="ilerleme-cubugu-dis">
+        <div id="ilerleme-cubugu-ic" class="ilerleme-cubugu-ic" style="width:0%"></div>
+      </div>
+      <p id="ilerleme-yuzde" class="ilerleme-yuzde">%0</p>
+      <button id="iptal-butonu" class="ikincil-buton">TARAMAYI İPTAL ET</button>
+    </div>
+  </section>
+
+  <!-- SONUÇ EKRANI -->
+  <section id="ekran-sonuc" class="ekran">
+    <div id="kritik-uyari-bandi" class="kritik-uyari-bandi">
+      <span id="kritik-uyari-metni"></span>
+    </div>
+
+    <div class="sonuc-panelleri">
+      <div class="panel-sekmeleri">
+        <button class="sekme aktif" data-panel="gorsel">GÖRSEL</button>
+        <button class="sekme" data-panel="ozet">ÖZET</button>
+      </div>
+
+      <div id="panel-gorsel" class="panel gorsel-panel aktif">
+        <div class="gorsel-sarici">
+          <canvas id="harita-canvas"></canvas>
+          <div id="donati-detay-kutusu" class="donati-detay-kutusu" hidden></div>
+        </div>
+        <div class="lejant">
+          <span class="lejant-oge"><i class="nokta uygun"></i> Uygun (&gt;<span class="lejant-sinir-ust">-</span> mm)</span>
+          <span class="lejant-oge"><i class="nokta sinirda"></i> Sınırda (<span class="lejant-sinir-alt">-</span>–<span class="lejant-sinir-ust">-</span> mm)</span>
+          <span class="lejant-oge"><i class="nokta yetersiz"></i> Yetersiz (&lt;<span class="lejant-sinir-alt">-</span> mm)</span>
+          <span class="lejant-oge"><i class="nokta supheli"></i> Şüpheli (güven &lt;%70)</span>
+          <span class="lejant-oge"><i class="nokta bosluk"></i> Boşluk</span>
+        </div>
+      </div>
+
+      <div id="panel-ozet" class="panel ozet-panel">
+        <div id="durum-karti" class="durum-karti"></div>
+        <p id="esik-bilgisi" class="esik-bilgisi"></p>
+
+        <div id="donati-tablo-sarici" class="tablo-sarici">
+          <table id="donati-tablosu" class="donati-tablosu">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Çap</th>
+                <th>Pas Payı</th>
+                <th>Katman</th>
+                <th>Yön</th>
+                <th>Durum</th>
+              </tr>
+            </thead>
+            <tbody id="donati-tablosu-govde"></tbody>
+          </table>
+        </div>
+
+        <div id="bosluk-uyari-bolumu" class="bosluk-uyari-bolumu" hidden>
+          <h3>⚠ Boşluk (Segregasyon) Tespit Edildi</h3>
+          <ul id="bosluk-listesi"></ul>
+        </div>
+
+        <div class="sonuc-eylemleri">
+          <a id="pdf-indir-butonu" class="buyuk-buton" href="#" download>PDF RAPOR İNDİR</a>
+          <button id="yeni-tarama-butonu" class="ikincil-buton">YENİ TARAMA</button>
+          <button id="sil-butonu" class="tehlike-buton">TARAMAYI SİL</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/gorsel-panel.js"></script>
+<script src="/js/ozet-panel.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

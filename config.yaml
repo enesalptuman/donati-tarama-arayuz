@@ -1,0 +1,26 @@
+# Donatı Tarama Cihazı — yapılandırma
+#
+# Gerçek algoritma hazır olduğunda tek satırı değiştirin:
+veri_kaynagi: mock   # mock | serial
+
+# Gerekli minimum pas payı artık global bir sabit DEĞİL — TS 500/TBDY 2018'e
+# göre yapı elemanı tipine ve projeye bağlı olduğu için her taramada
+# operatör/denetçi tarafından giriş formunda girilir (bkz. analiz.py
+# ELEMAN_TIPI_VARSAYILAN_PAS_PAYI_MM — sadece öneri/varsayım sunar).
+#
+# "Sınırda" (turuncu) eşiği, girilen min. pas payına otomatik eklenen bir
+# görsel erken-uyarı payıdır — ayrı bir mühendislik değeri değildir:
+sinirda_pay_mm: 10.0
+
+# Disk yönetimi (denetim kaydı olduğu için varsayılan: otomatik silme YOK):
+#  - maks_tarama_sayisi: 0 = sınırsız (hiçbir tarama otomatik silinmez).
+#    >0 yapılırsa, yeni tarama bitince en eski TAMAMLANMIŞ taramalar bu
+#    sayının üstünde kalanlar otomatik silinir (devam edenlere dokunulmaz).
+#  - uyari_tarama_sayisi: Kayıtlı tarama bu sayıyı aşınca arayüzde
+#    "disk dolabilir" uyarısı gösterilir (0 = uyarı kapalı).
+maks_tarama_sayisi: 0
+uyari_tarama_sayisi: 50
+
+# SerialDataSource için (veri_kaynagi: serial iken kullanılır)
+seri_port: /dev/ttyACM0
+seri_baud: 921600

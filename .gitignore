@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+taramalar/*
+!taramalar/.gitkeep
+*.log
+Thumbs.db
+.DS_Store
+*.jpeg

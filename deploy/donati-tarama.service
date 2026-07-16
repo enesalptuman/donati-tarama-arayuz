@@ -1,0 +1,15 @@
+[Unit]
+Description=Donati Tarama Cihazi - Operator Arayuzu (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/donati-tarama
+Environment=PATH=/home/pi/donati-tarama/.venv/bin
+ExecStart=/home/pi/donati-tarama/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
