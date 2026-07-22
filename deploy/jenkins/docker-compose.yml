@@ -1,0 +1,19 @@
+# Jenkins'i ayağa kaldırır:  cd deploy/jenkins  &&  docker compose up -d --build
+# Tarayıcı: http://localhost:8080
+
+services:
+  jenkins:
+    build: .                     # yandaki Dockerfile (Jenkins + Docker CLI + Python)
+    # Host Docker soketine erişim için root çalıştırıyoruz. YEREL geliştirme
+    # basitliği içindir; üretimde (Faz 5) daha kısıtlı bir kurulum yapılır.
+    user: root
+    ports:
+      - "8080:8080"              # Jenkins web arayüzü
+      - "50000:50000"            # Jenkins agent bağlantı portu (ileride gerekebilir)
+    volumes:
+      - jenkins_home:/var/jenkins_home              # tüm yapılandırma/job'lar kalıcı
+      - /var/run/docker.sock:/var/run/docker.sock   # HOST Docker'ını kullan (DooD)
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

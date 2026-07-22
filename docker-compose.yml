@@ -23,6 +23,9 @@ services:
   # -------------------- FastAPI uygulaması --------------------
   app:
     build: .                           # bu dizindeki Dockerfile ile imajı derle
+    # build + image birlikte: yerelde derlerken bu etiketle tag'ler; CI'da
+    # bu imaj ghcr.io'ya push edilir ve deploy sırasında buradan çekilir.
+    image: ghcr.io/enesalptuman/donati-tarama-arayuz:latest
     environment:
       # host "db" = yukarıdaki servis adı; Compose iç DNS'i çözer.
       DONATI_DB_URL: postgresql+asyncpg://donati:${POSTGRES_PASSWORD:-donati}@db:5432/donati
