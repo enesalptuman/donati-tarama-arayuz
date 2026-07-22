@@ -1,23 +1,35 @@
-"""Taramaların diske kalıcı kaydı ve okunması.
+"""Kalıcı katman — meta veri PostgreSQL'de, görüntü PNG'leri dosya sisteminde.
 
-Her tarama `taramalar/{id}/` altında üç dosyayla tutulur:
-  - durum.json  → yaşam döngüsü durumu + ilerleme (işlem sırasında güncellenir)
-  - sonuc.json  → tamamlandığında yazılan, algoritma şemasına uyan tam sonuç
-  - harita.png  → yansıma haritası
-
-Pi yeniden başlasa bile taramalar kaybolmaz; TaramaService, durum.json'u
-kullanarak yarıda kesilmiş taramaları "hata" olarak işaretler.
+Faz 3'te dosya-tabanlı JSON depolamadan veritabanına geçildi. Servis katmanı
+bu modülün fonksiyonlarını çağırır; DB olduğunu bilmesi gerekmez (fonksiyonlar
+artık async). Görüntüler büyük ikili veri olduğu için DB yerine diskte tutulur
+(taramalar/{id}/harita.png) ve statik olarak servis edilir.
 """
 
 from __future__ import annotations
 
-import json
 import shutil
 from pathlib import Path
 
+from sqlalchemy import func, select
+
+from app import db
 from app.config import TARAMALAR_DIZINI
-from app.models.tarama import TaramaDurum, TaramaDurumBilgisi, TaramaOzet, TaramaParametreleri, TaramaSonucu
+from app.db_models import TaramaKaydi
+from app.models.tarama import (
+    ElemanTipi,
+    PasPayiDurumu,
+    TaramaDurum,
+    TaramaDurumBilgisi,
+    TaramaOzet,
+    TaramaParametreleri,
+    TaramaSonucu,
+)
 from app.services import analiz
+
+# ---------------------------------------------------------------------------
+# Görüntü (dosya sistemi) — DB'de tutulmaz
+# ---------------------------------------------------------------------------
 
 
 def tarama_dizini(tarama_id: str) -> Path:
@@ -26,45 +38,8 @@ def tarama_dizini(tarama_id: str) -> Path:
     return dizin
 
 
-def durumu_kaydet(tarama_id: str, durum_bilgisi: TaramaDurumBilgisi) -> None:
-    dizin = tarama_dizini(tarama_id)
-    (dizin / "durum.json").write_text(durum_bilgisi.model_dump_json(indent=2), encoding="utf-8")
-
-
-def durumu_oku(tarama_id: str) -> TaramaDurumBilgisi | None:
-    dosya = TARAMALAR_DIZINI / tarama_id / "durum.json"
-    if not dosya.exists():
-        return None
-    return TaramaDurumBilgisi.model_validate_json(dosya.read_text(encoding="utf-8"))
-
-
-def sonucu_kaydet(tarama_id: str, sonuc: TaramaSonucu) -> None:
-    dizin = tarama_dizini(tarama_id)
-    (dizin / "sonuc.json").write_text(sonuc.model_dump_json(indent=2), encoding="utf-8")
-
-
-def sonucu_oku(tarama_id: str) -> TaramaSonucu | None:
-    dosya = TARAMALAR_DIZINI / tarama_id / "sonuc.json"
-    if not dosya.exists():
-        return None
-    return TaramaSonucu.model_validate_json(dosya.read_text(encoding="utf-8"))
-
-
-def parametreler_kaydet(tarama_id: str, parametreler: TaramaParametreleri) -> None:
-    dizin = tarama_dizini(tarama_id)
-    (dizin / "parametreler.json").write_text(parametreler.model_dump_json(indent=2), encoding="utf-8")
-
-
-def parametreler_oku(tarama_id: str) -> TaramaParametreleri | None:
-    dosya = TARAMALAR_DIZINI / tarama_id / "parametreler.json"
-    if not dosya.exists():
-        return None
-    return TaramaParametreleri.model_validate_json(dosya.read_text(encoding="utf-8"))
-
-
 def goruntuyu_kaydet(tarama_id: str, png_bayt: bytes) -> None:
-    dizin = tarama_dizini(tarama_id)
-    (dizin / "harita.png").write_bytes(png_bayt)
+    (tarama_dizini(tarama_id) / "harita.png").write_bytes(png_bayt)
 
 
 def goruntu_yolu(tarama_id: str) -> Path | None:
@@ -72,81 +47,168 @@ def goruntu_yolu(tarama_id: str) -> Path | None:
     return dosya if dosya.exists() else None
 
 
-def tarama_var_mi(tarama_id: str) -> bool:
-    return (TARAMALAR_DIZINI / tarama_id).exists()
+# ---------------------------------------------------------------------------
+# Meta veri (PostgreSQL)
+# ---------------------------------------------------------------------------
 
 
-def taramayi_sil(tarama_id: str) -> None:
+async def tarama_olustur(
+    tarama_id: str,
+    operator: str,
+    konum_etiketi: str,
+    eleman_tipi: ElemanTipi,
+    gerekli_pas_payi_mm: float,
+) -> None:
+    """Yeni tarama satırını BEKLIYOR durumuyla ekler (INSERT)."""
+    async with db.oturum_ac() as s:
+        s.add(
+            TaramaKaydi(
+                tarama_id=tarama_id,
+                operator=operator,
+                konum_etiketi=konum_etiketi,
+                eleman_tipi=eleman_tipi.value,
+                gerekli_pas_payi_mm=gerekli_pas_payi_mm,
+                durum=TaramaDurum.BEKLIYOR.value,
+                ilerleme=0,
+            )
+        )
+        await s.commit()
+
+
+async def durum_guncelle(
+    tarama_id: str,
+    durum: TaramaDurum,
+    ilerleme: int,
+    hata_mesaji: str | None = None,
+) -> None:
+    """Taramanın durum/ilerleme alanlarını günceller (UPDATE)."""
+    async with db.oturum_ac() as s:
+        kayit = await s.get(TaramaKaydi, tarama_id)
+        if kayit is None:
+            return
+        kayit.durum = durum.value
+        kayit.ilerleme = ilerleme
+        if hata_mesaji is not None:
+            kayit.hata_mesaji = hata_mesaji
+        await s.commit()
+
+
+async def sonuc_guncelle(tarama_id: str, sonuc: TaramaSonucu) -> None:
+    """Tamamlanan taramanın sonuç JSON'unu ve tarihini yazar (UPDATE)."""
+    async with db.oturum_ac() as s:
+        kayit = await s.get(TaramaKaydi, tarama_id)
+        if kayit is None:
+            return
+        kayit.sonuc_json = sonuc.model_dump_json()
+        kayit.tarih = sonuc.tarih
+        await s.commit()
+
+
+async def durumu_oku(tarama_id: str) -> TaramaDurumBilgisi | None:
+    async with db.oturum_ac() as s:
+        kayit = await s.get(TaramaKaydi, tarama_id)
+        if kayit is None:
+            return None
+        return TaramaDurumBilgisi(
+            tarama_id=kayit.tarama_id,
+            durum=TaramaDurum(kayit.durum),
+            ilerleme=kayit.ilerleme,
+            hata_mesaji=kayit.hata_mesaji,
+        )
+
+
+async def sonucu_oku(tarama_id: str) -> TaramaSonucu | None:
+    async with db.oturum_ac() as s:
+        kayit = await s.get(TaramaKaydi, tarama_id)
+        if kayit is None or kayit.sonuc_json is None:
+            return None
+        return TaramaSonucu.model_validate_json(kayit.sonuc_json)
+
+
+async def parametreler_oku(tarama_id: str) -> TaramaParametreleri | None:
+    async with db.oturum_ac() as s:
+        kayit = await s.get(TaramaKaydi, tarama_id)
+        if kayit is None:
+            return None
+        return TaramaParametreleri(
+            eleman_tipi=ElemanTipi(kayit.eleman_tipi),
+            gerekli_pas_payi_mm=kayit.gerekli_pas_payi_mm,
+        )
+
+
+async def tarama_var_mi(tarama_id: str) -> bool:
+    async with db.oturum_ac() as s:
+        return await s.get(TaramaKaydi, tarama_id) is not None
+
+
+async def taramayi_sil(tarama_id: str) -> None:
+    """DB satırını ve varsa görüntü dizinini siler."""
+    async with db.oturum_ac() as s:
+        kayit = await s.get(TaramaKaydi, tarama_id)
+        if kayit is not None:
+            await s.delete(kayit)
+            await s.commit()
     dizin = TARAMALAR_DIZINI / tarama_id
     if dizin.exists():
         shutil.rmtree(dizin)
 
 
-def taramalari_listele() -> list[TaramaOzet]:
-    TARAMALAR_DIZINI.mkdir(parents=True, exist_ok=True)
+async def taramalari_listele() -> list[TaramaOzet]:
+    """Tüm taramaları en yeniden eskiye özet olarak döner."""
+    async with db.oturum_ac() as s:
+        satirlar = (
+            (await s.execute(select(TaramaKaydi).order_by(TaramaKaydi.olusturma_zamani.desc())))
+            .scalars()
+            .all()
+        )
+
     ozetler: list[TaramaOzet] = []
-    for dizin in TARAMALAR_DIZINI.iterdir():
-        if not dizin.is_dir():
-            continue
-        tarama_id = dizin.name
-        sonuc = sonucu_oku(tarama_id)
-        durum_bilgisi = durumu_oku(tarama_id)
-        if sonuc is not None:
-            parametreler = parametreler_oku(tarama_id) or analiz.varsayilan_parametreler()
-            kritik_uyari = analiz.kritik_uyari_belirle(sonuc, parametreler.gerekli_pas_payi_mm)
-            ozetler.append(
-                TaramaOzet(
-                    tarama_id=tarama_id,
-                    tarih=sonuc.tarih,
-                    operator=sonuc.operator,
-                    konum_etiketi=sonuc.konum_etiketi,
-                    donati_sayisi=sonuc.donati_sayisi,
-                    kritik_uyari_var_mi=kritik_uyari.seviye != "uygun",
-                    durum=durum_bilgisi.durum if durum_bilgisi else TaramaDurum.TAMAMLANDI,
-                )
+    for k in satirlar:
+        donati_sayisi = 0
+        kritik_uyari_var = False
+        if k.sonuc_json is not None:
+            sonuc = TaramaSonucu.model_validate_json(k.sonuc_json)
+            donati_sayisi = sonuc.donati_sayisi
+            # Kritik uyarı hesabı tek kaynaktan (analiz.py); eşik operatör girdisi
+            uyari = analiz.kritik_uyari_belirle(sonuc, k.gerekli_pas_payi_mm)
+            kritik_uyari_var = uyari.seviye != PasPayiDurumu.UYGUN
+        ozetler.append(
+            TaramaOzet(
+                tarama_id=k.tarama_id,
+                tarih=k.tarih or k.olusturma_zamani,
+                operator=k.operator,
+                konum_etiketi=k.konum_etiketi,
+                donati_sayisi=donati_sayisi,
+                kritik_uyari_var_mi=kritik_uyari_var,
+                durum=TaramaDurum(k.durum),
             )
-        elif durum_bilgisi is not None:
-            ozetler.append(
-                TaramaOzet(
-                    tarama_id=tarama_id,
-                    tarih=_id_den_tarih_tahmini(tarama_id),
-                    operator="-",
-                    konum_etiketi="-",
-                    donati_sayisi=0,
-                    kritik_uyari_var_mi=False,
-                    durum=durum_bilgisi.durum,
-                )
-            )
-    ozetler.sort(key=lambda o: o.tarih, reverse=True)
+        )
     return ozetler
 
 
-def tamamlanan_tarama_sayisi() -> int:
-    return sum(1 for o in taramalari_listele() if o.durum == TaramaDurum.TAMAMLANDI)
+async def tamamlanan_tarama_sayisi() -> int:
+    async with db.oturum_ac() as s:
+        return (
+            await s.execute(
+                select(func.count())
+                .select_from(TaramaKaydi)
+                .where(TaramaKaydi.durum == TaramaDurum.TAMAMLANDI.value)
+            )
+        ).scalar_one()
 
 
-def eski_taramalari_buda(maks_sayi: int) -> list[str]:
+async def eski_taramalari_buda(maks_sayi: int) -> list[str]:
     """En yeni `maks_sayi` tamamlanmış taramayı tutar, daha eskilerini siler.
 
-    Devam eden (isleniyor/bekliyor) taramalara dokunmaz. Silinen id'leri döner.
     maks_sayi <= 0 ise hiçbir şey silmez (sınırsız = otomatik silme kapalı).
     """
     if maks_sayi <= 0:
         return []
-    ozetler = taramalari_listele()  # tarihe göre yeniden eskiye sıralı
+    ozetler = await taramalari_listele()  # en yeniden eskiye sıralı
     tamamlananlar = [o for o in ozetler if o.durum == TaramaDurum.TAMAMLANDI]
-    silinecekler = tamamlananlar[maks_sayi:]  # limitin üstünde kalan en eskiler
+    silinecekler = tamamlananlar[maks_sayi:]
     silinen_idler: list[str] = []
     for ozet in silinecekler:
-        taramayi_sil(ozet.tarama_id)
+        await taramayi_sil(ozet.tarama_id)
         silinen_idler.append(ozet.tarama_id)
     return silinen_idler
-
-
-def _id_den_tarih_tahmini(tarama_id: str):
-    from datetime import datetime, timezone
-
-    try:
-        return datetime.strptime(tarama_id, "%Y-%m-%dT%H-%M-%S").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return datetime.now(timezone.utc)
