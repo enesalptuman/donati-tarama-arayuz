@@ -16,11 +16,27 @@ STATIK_DIZIN = PROJE_KOKU / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Görüntülerin yazılacağı dizin (meta veri artık DB'de)
     TARAMALAR_DIZINI.mkdir(parents=True, exist_ok=True)
-    tarama_servisi.baslangicta_kesilmisleri_isaretle()
+    # Yarıda kesilmiş taramaları "hata" işaretle (artık DB'ye async yazar)
+    await tarama_servisi.baslangicta_kesilmisleri_isaretle()
     yield
 
 
 app = FastAPI(title="Donatı Tarama Cihazı — Operatör Arayüzü", lifespan=lifespan)
 app.include_router(tarama_router)
+
+
+@app.get("/health", tags=["altyapi"])
+async def health() -> dict[str, str]:
+    """Canlılık kontrolü (liveness). Deploy sonrası ve health check için:
+    süreç ayakta ve istek işleyebiliyorsa 200 döner. Bağımlılık (DB vb.)
+    kontrolü içermez — o "readiness" olur ve PostgreSQL gelince eklenir.
+    Kök seviyededir çünkü Nginx/Jenkins/Docker health check burayı bekler.
+    """
+    return {"durum": "saglikli"}
+
+
+# StaticFiles mount'u EN SONA — kök yolu ("/") kapattığı için tüm API ve
+# /health route'ları ondan ÖNCE kayıtlı olmalı, yoksa buraya düşerler.
 app.mount("/", StaticFiles(directory=STATIK_DIZIN, html=True), name="static")

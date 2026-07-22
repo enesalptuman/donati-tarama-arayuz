@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import io
+
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import FileResponse, StreamingResponse
-import io
 
 from app import storage
 from app.models.tarama import (

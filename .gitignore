@@ -8,3 +8,17 @@ taramalar/*
 Thumbs.db
 .DS_Store
 *.jpeg
+
+# Secret'lar — .env ASLA git'e girmez, .env.example girer
+.env
+!.env.example
+
+# Test / lint artefaktları (Faz 2)
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Yerel SQLite dosyaları (test/geliştirme)
+*.db

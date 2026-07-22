@@ -9,7 +9,7 @@ düzeni küçük rastgele sapmalarla taklit eder; ayrıca ara sıra boşluk
 from __future__ import annotations
 
 import random
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.models.tarama import Bosluk, Donati, Goruntu, TaramaAlani, TaramaSonucu, Yon
 
