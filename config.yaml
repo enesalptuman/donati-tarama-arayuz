@@ -1,5 +1,10 @@
 # Donatı Tarama Cihazı — yapılandırma
 #
+# ÖNCELİK: ortam değişkeni (DONATI_ önekli) > bu dosya > kod içi varsayılan.
+# Yani buradaki her değer, aynı adlı DONATI_* ortam değişkeniyle ezilebilir.
+# Örn: DONATI_VERI_KAYNAGI=serial  bu dosyadaki veri_kaynagi'yi ezer.
+# (bkz. app/config.py, .env.example)
+#
 # Gerçek algoritma hazır olduğunda tek satırı değiştirin:
 veri_kaynagi: mock   # mock | serial
 
@@ -20,6 +25,12 @@ sinirda_pay_mm: 10.0
 #    "disk dolabilir" uyarısı gösterilir (0 = uyarı kapalı).
 maks_tarama_sayisi: 0
 uyari_tarama_sayisi: 50
+
+# Mock tarama süresi (saniye). Üretimde 60-120 (gerçek algoritma da bu kadar
+# sürecek). Geliştirme/test için env ile küçültün:
+#   DONATI_MOCK_SURE_MIN_SN=3  DONATI_MOCK_SURE_MAKS_SN=5
+mock_sure_min_sn: 60.0
+mock_sure_maks_sn: 120.0
 
 # SerialDataSource için (veri_kaynagi: serial iken kullanılır)
 seri_port: /dev/ttyACM0
