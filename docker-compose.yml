@@ -1,0 +1,43 @@
+# Uygulama + PostgreSQL'i tek komutla ayağa kaldırır: docker compose up
+# (Compose v2'de "version:" alanı artık gereksiz, yazılmadı.)
+
+services:
+  # -------------------- PostgreSQL veritabanı --------------------
+  db:
+    image: postgres:16-alpine          # hafif resmi Postgres imajı
+    environment:
+      POSTGRES_USER: donati
+      POSTGRES_DB: donati
+      # Şifre .env'den okunur; yoksa geliştirme için "donati"ye düşer.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-donati}
+    volumes:
+      - db_verisi:/var/lib/postgresql/data   # veri kalıcı (konteyner silinse de durur)
+    healthcheck:
+      # Postgres istek almaya hazır mı? app bunu bekleyecek (depends_on).
+      test: ["CMD-SHELL", "pg_isready -U donati -d donati"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Not: db portu dışarı YAYINLANMIYOR — sadece app iç ağdan erişir (güvenlik).
+
+  # -------------------- FastAPI uygulaması --------------------
+  app:
+    build: .                           # bu dizindeki Dockerfile ile imajı derle
+    environment:
+      # host "db" = yukarıdaki servis adı; Compose iç DNS'i çözer.
+      DONATI_DB_URL: postgresql+asyncpg://donati:${POSTGRES_PASSWORD:-donati}@db:5432/donati
+      # Demo için kısa mock süresi (üretimde kaldırın → varsayılan 60-120 sn):
+      DONATI_MOCK_SURE_MIN_SN: "5"
+      DONATI_MOCK_SURE_MAKS_SN: "10"
+    depends_on:
+      db:
+        condition: service_healthy     # app, db "healthy" olana kadar başlamaz
+    ports:
+      - "8000:8000"                    # host:konteyner — tarayıcıdan erişim
+    volumes:
+      - taramalar_verisi:/app/taramalar   # görüntü PNG'leri kalıcı
+
+# Adlandırılmış volume'ler (Docker yönetir; makinede kalıcı kalır)
+volumes:
+  db_verisi:
+  taramalar_verisi:

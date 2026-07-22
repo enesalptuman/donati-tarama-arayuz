@@ -1,0 +1,40 @@
+# Docker build context'ine ALINMAYACAK dosyalar (imaj küçük + güvenli kalsın).
+
+# Sanal ortam ve Python önbelleği (imajda kendi venv'imiz var)
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Sürüm kontrolü ve IDE
+.git/
+.gitignore
+.github/
+
+# GİZLİ BİLGİLER — .env asla imaja girmemeli (secret sızıntısı)
+.env
+
+# Test/lint araçları ve çıktıları (üretim imajında gereksiz)
+tests/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+requirements-dev.txt
+
+# Yerel veriler ve artefaktlar
+*.db
+taramalar/*
+!taramalar/.gitkeep
+
+# Dokümantasyon ve görseller (çalışma zamanında gereksiz)
+*.md
+*.jpeg
+*.jpg
+*.png
+
+# Docker'ın kendi dosyaları
+Dockerfile
+.dockerignore
+docker-compose.yml

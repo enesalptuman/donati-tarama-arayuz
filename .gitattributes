@@ -1,0 +1,4 @@
+# Shell betikleri her zaman LF satır sonuyla checkout edilsin.
+# (Windows'ta CRLF'e dönüşürse Linux konteynerde "#!/bin/sh\r" hatası verir.)
+*.sh text eol=lf
+deploy/docker-entrypoint.sh text eol=lf
