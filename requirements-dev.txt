@@ -1,0 +1,16 @@
+# Geliştirme ve CI bağımlılıkları — ÜRETİM imajına GİRMEZ.
+# Kurulum:  pip install -r requirements.txt -r requirements-dev.txt
+#
+# Çalışma zamanı bağımlılıkları için requirements.txt'e bakın.
+
+-r requirements.txt          # dev ortamı çalışma zamanını da içermeli
+
+# Test çatısı
+pytest==8.3.4
+pytest-asyncio==0.25.2       # async endpoint/servis testleri için
+pytest-cov==6.0.0            # test coverage ölçümü
+httpx==0.28.1                # FastAPI TestClient'ın altyapısı (async HTTP)
+aiosqlite==0.20.0            # testlerde SQLite async sürücüsü (Postgres yerine, hızlı/izole)
+
+# Kod kalitesi
+ruff==0.9.2                  # linter + formatter (flake8+black+isort yerine tek araç)

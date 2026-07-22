@@ -1,0 +1,43 @@
+# Merkezi proje + araç yapılandırması (pytest, coverage, ruff).
+# Ayrı pytest.ini / .coveragerc / .flake8 dosyaları yerine tek yerden.
+
+[project]
+name = "donati-tarama-arayuz"
+version = "0.1.0"
+description = "Betonarme donatı tarama cihazı — operatör arayüzü"
+requires-python = ">=3.11"
+
+# ----------------------------------------------------------------------
+# pytest
+# ----------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]          # testler yalnızca tests/ altında aranır
+asyncio_mode = "auto"          # async def test_... otomatik async çalışır (marker gerekmez)
+asyncio_default_fixture_loop_scope = "function"  # her test kendi event loop'unda (izolasyon)
+addopts = "-q"                 # sade (quiet) çıktı
+
+# ----------------------------------------------------------------------
+# coverage.py — hangi kodun test tarafından çalıştırıldığını ölçer
+# ----------------------------------------------------------------------
+[tool.coverage.run]
+source = ["app"]               # sadece kendi kodumuzun kapsamını ölç (kütüphaneleri değil)
+omit = [
+    "app/**/__init__.py",      # boş paket dosyaları — ölçmenin anlamı yok
+]
+
+[tool.coverage.report]
+show_missing = true            # kapsanmayan satır numaralarını göster
+skip_covered = false
+precision = 1                  # yüzdeyi 1 ondalıkla göster
+
+# ----------------------------------------------------------------------
+# ruff — linter + formatter (flake8 + black + isort'un yerine tek araç)
+# ----------------------------------------------------------------------
+[tool.ruff]
+line-length = 120              # bu kod tabanı ~110-120 sütunda yazıldı
+target-version = "py311"
+
+[tool.ruff.lint]
+# E: pycodestyle hataları, F: pyflakes (kullanılmayan import/değişken),
+# I: isort (import sıralaması), W: uyarılar, UP: modern Python idiyomları
+select = ["E", "F", "I", "W", "UP"]

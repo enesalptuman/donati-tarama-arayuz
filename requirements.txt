@@ -7,3 +7,8 @@ Pillow==11.1.0
 reportlab==4.2.5
 pyserial==3.5
 python-multipart==0.0.20
+
+# Veritabanı (Faz 3): PostgreSQL + async
+SQLAlchemy[asyncio]==2.0.36  # ORM (2.0 async API); [asyncio] extra'sı greenlet'i getirir
+asyncpg==0.30.0           # PostgreSQL async sürücüsü (üretim)
+alembic==1.14.0           # şema migration aracı
