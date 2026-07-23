@@ -66,7 +66,10 @@ pipeline {
 
         // 6) İmajı ghcr.io'ya gönder. Sadece main branch'te ve kimlik bilgisiyle.
         stage('Push') {
-            when { branch 'main' }
+            // `branch 'main'` TEK BAŞINA yetmez: BRANCH_NAME yalnızca Multibranch
+            // Pipeline job'larında tanımlıdır. Tek-branch Pipeline job'ında Git
+            // eklentisi GIT_BRANCH ("origin/main") set eder. İkisini de kapsıyoruz.
+            when { expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').endsWith('main') } }
             environment {
                 // Jenkins'te tanımlı 'github-pat' (GitHub kullanıcı adı + PAT) →
                 // otomatik GHCR_USR ve GHCR_PSW değişkenlerine ayrışır.
@@ -83,7 +86,7 @@ pipeline {
         // 7) Deploy (yerel demo): compose ile app + postgres'i ayağa kaldır.
         //    Faz 5'te bu aşama uzak sunucuya SSH ile deploy edecek şekilde değişecek.
         stage('Deploy') {
-            when { branch 'main' }
+            when { expression { (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').endsWith('main') } }
             steps {
                 sh 'docker compose -p donati up -d'
             }
@@ -93,7 +96,9 @@ pipeline {
     // Aşamalardan SONRA, sonuca göre çalışan bloklar.
     post {
         success {
-            echo '✅ Pipeline başarılı — test geçti, imaj build/push edildi, deploy tamam.'
+            // Not: Push/Deploy yalnızca main branch'te çalışır; hangi aşamaların
+            // gerçekten koştuğunu Stage View'dan doğrulayın (atlananlar gri görünür).
+            echo '✅ Pipeline başarılı — lint ve testler geçti, imaj derlendi.'
         }
         failure {
             echo '❌ Pipeline BAŞARISIZ — yukarıdaki aşama loglarını inceleyin.'
