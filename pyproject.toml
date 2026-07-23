@@ -12,6 +12,11 @@ requires-python = ">=3.11"
 # ----------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]          # testler yalnızca tests/ altında aranır
+# Proje kökünü sys.path'e ekle → "import app" her çağrım şeklinde çalışır.
+# Neden gerekli: `python -m pytest` cwd'yi sys.path'e ekler ama düz `pytest`
+# EKLEMEZ. CI (Jenkins) düz `pytest` çalıştırdığı için bu satır olmadan
+# ModuleNotFoundError: No module named 'app' alınır.
+pythonpath = ["."]
 asyncio_mode = "auto"          # async def test_... otomatik async çalışır (marker gerekmez)
 asyncio_default_fixture_loop_scope = "function"  # her test kendi event loop'unda (izolasyon)
 addopts = "-q"                 # sade (quiet) çıktı
