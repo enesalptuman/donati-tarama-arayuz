@@ -164,3 +164,6 @@ static/              Vanilla JS operatör arayüzü
 deploy/              systemd + kiosk script
 taramalar/           Kalıcı veri (çalışma zamanında oluşur)
 ```
+
+
+# push edip otomatik tetiklenme kontrolü için bu cümleyi ekleyip readme'yi pushlayıp deneyeceğim. 
